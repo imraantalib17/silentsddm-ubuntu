@@ -10,7 +10,11 @@ SHPATH=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 : ${THEMES_DIR:=/usr/share/sddm/themes}
 
 install_dependencies () {
-    if command -v pacman &>/dev/null; then
+    if command -v apt-get &>/dev/null; then
+        echo -e "${grey}Installing dependencies with 'apt'...${reset}"
+        sudo apt-get update
+        sudo apt-get install -y sddm qml6-module-qtquick-templates qml6-module-qtquick-controls qml6-module-org-kde-kirigami libqt6svg6 qml6-module-qtquick-virtualkeyboard qt6-multimedia-dev qml6-module-qtmultimedia qt6-image-formats-plugins
+    elif command -v pacman &>/dev/null; then
         echo -e "${grey}Installing dependencies with 'pacman'...${reset}"
         sudo pacman -S --needed sddm qt6-svg qt6-virtualkeyboard qt6-multimedia-ffmpeg qt6-imageformats
     elif command -v xbps-install &>/dev/null; then
@@ -56,7 +60,7 @@ apply_theme () {
         fi
 
         # "InputMethod" was supposed to automatically set "QT_IM_MODULE", but it doesn't, so we manually export it.
-        if ! grep -Pzq 'GreeterEnvironment=QML2_IMPORT_PATH=${THEMES_DIR}/silent/components/,QT_IM_MODULE=qtvirtualkeyboard' /etc/sddm.conf; then
+        if ! grep -Pzq "GreeterEnvironment=QML2_IMPORT_PATH=${THEMES_DIR}/silent/components/,QT_IM_MODULE=qtvirtualkeyboard" /etc/sddm.conf; then
             echo -e "\n[General]\nGreeterEnvironment=QML2_IMPORT_PATH=${THEMES_DIR}/silent/components/,QT_IM_MODULE=qtvirtualkeyboard" | sudo tee -a /etc/sddm.conf
         fi
     else

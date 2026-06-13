@@ -7,10 +7,11 @@ Item {
     id: lockScreen
     signal loginRequested
 
-    // TODO: Support for weather info?
+    // [Clock and Date Panel]
     ColumnLayout {
         id: timePositioner
         spacing: Config.dateMarginTop
+
         Text {
             id: time
             visible: Config.clockDisplay
@@ -39,30 +40,6 @@ Item {
             }
         }
 
-        Timer {
-            id: clockTimer
-            interval: 1000
-            repeat: true
-            running: true
-            onTriggered: {
-                time.updateTime();
-                date.updateDate();
-            }
-        }
-
-        Component.onDestruction: {
-            if (clockTimer) {
-                clockTimer.stop();
-            }
-        }
-
-        anchors {
-            // FIX: Height calculation fixes - protect against zero division
-            topMargin: Config.lockScreenPaddingTop || (lockScreen.height > 0 ? lockScreen.height / 10 : 50)
-            rightMargin: Config.lockScreenPaddingRight || (lockScreen.height > 0 ? lockScreen.height / 10 : 50)
-            bottomMargin: Config.lockScreenPaddingBottom || (lockScreen.height > 0 ? lockScreen.height / 10 : 50)
-            leftMargin: Config.lockScreenPaddingLeft || (lockScreen.height > 0 ? lockScreen.height / 10 : 50)
-        }
         Component.onCompleted: {
             lockScreen.alignItem(timePositioner, Config.clockPosition);
             time.updateTime();
@@ -70,28 +47,30 @@ Item {
         }
     }
 
+    // [Custom Prompt Message / Unlock Prompt]
     ColumnLayout {
         id: messagePositioner
         visible: Config.lockMessageDisplay
         spacing: Config.lockMessageSpacing
+
         Item {
             Layout.alignment: Config.lockMessageAlign === "left" ? Qt.AlignLeft : (Config.lockMessageAlign === "right" ? Qt.AlignRight : Qt.AlignHCenter)
-            Layout.preferredWidth: Config.lockMessageIconSize
-            Layout.preferredHeight: Config.lockMessageIconSize
+            Layout.preferredWidth: Config.lockMessageIconSize * Config.generalScale
+            Layout.preferredHeight: Config.lockMessageIconSize * Config.generalScale
 
             Image {
                 id: lockIcon
-                source: Config.getIcon(Config.lockMessageIcon)
-                width: Config.lockMessageIconSize * Config.generalScale
-                height: width
+                source: theme.url + "/icons/" + Config.lockMessageIcon
+                anchors.fill: parent
                 sourceSize: Qt.size(width, height)
                 fillMode: Image.PreserveAspectFit
                 visible: false
             }
+
             MultiEffect {
                 source: lockIcon
-                anchors.fill: lockIcon
-                colorization: Config.lockMessagePaintIcon ? 1 : 0
+                anchors.fill: parent
+                colorization: Config.lockMessagePaintIcon ? 1.0 : 0.0
                 colorizationColor: Config.lockMessageColor
                 visible: Config.lockMessageDisplayIcon
                 antialiasing: true
@@ -108,33 +87,56 @@ Item {
             text: Config.lockMessageText
         }
 
-        anchors {
-            // FIX: Height calculation fixes - protect against zero division
-            topMargin: Config.lockScreenPaddingTop || (lockScreen.height > 0 ? lockScreen.height / 10 : 50)
-            rightMargin: Config.lockScreenPaddingRight || (lockScreen.height > 0 ? lockScreen.height / 10 : 50)
-            bottomMargin: Config.lockScreenPaddingBottom || (lockScreen.height > 0 ? lockScreen.height / 10 : 50)
-            leftMargin: Config.lockScreenPaddingLeft || (lockScreen.height > 0 ? lockScreen.height / 10 : 50)
-        }
         Component.onCompleted: lockScreen.alignItem(messagePositioner, Config.lockMessagePosition)
     }
 
+    // Primary Clock Update Timer
+    Timer {
+        id: clockTimer
+        interval: 1000
+        repeat: true
+        running: true
+        onTriggered: {
+            time.updateTime();
+            date.updateDate();
+        }
+    }
+
+    Component.onDestruction: {
+        if (clockTimer) {
+            clockTimer.stop();
+        }
+    }
+
+    // Layout Alignment Engine (Dynamically applies safe layout margins)
     function alignItem(item, pos) {
+        var topM = Config.lockScreenPaddingTop || (lockScreen.height > 0 ? lockScreen.height / 10 : 50);
+        var rightM = Config.lockScreenPaddingRight || (lockScreen.height > 0 ? lockScreen.height / 10 : 50);
+        var bottomM = Config.lockScreenPaddingBottom || (lockScreen.height > 0 ? lockScreen.height / 10 : 50);
+        var leftM = Config.lockScreenPaddingLeft || (lockScreen.height > 0 ? lockScreen.height / 10 : 50);
+
         switch (pos) {
         case "top-left":
             item.anchors.top = lockScreen.top;
             item.anchors.left = lockScreen.left;
+            item.anchors.topMargin = topM;
+            item.anchors.leftMargin = leftM;
             break;
         case "top-center":
             item.anchors.top = lockScreen.top;
             item.anchors.horizontalCenter = lockScreen.horizontalCenter;
+            item.anchors.topMargin = topM;
             break;
         case "top-right":
             item.anchors.top = lockScreen.top;
             item.anchors.right = lockScreen.right;
+            item.anchors.topMargin = topM;
+            item.anchors.rightMargin = rightM;
             break;
         case "center-left":
             item.anchors.verticalCenter = lockScreen.verticalCenter;
             item.anchors.left = lockScreen.left;
+            item.anchors.leftMargin = leftM;
             break;
         case "center":
             item.anchors.verticalCenter = lockScreen.verticalCenter;
@@ -143,26 +145,33 @@ Item {
         case "center-right":
             item.anchors.verticalCenter = lockScreen.verticalCenter;
             item.anchors.right = lockScreen.right;
+            item.anchors.rightMargin = rightM;
             break;
         case "bottom-left":
             item.anchors.bottom = lockScreen.bottom;
             item.anchors.left = lockScreen.left;
+            item.anchors.bottomMargin = bottomM;
+            item.anchors.leftMargin = leftM;
             break;
         case "bottom-center":
             item.anchors.bottom = lockScreen.bottom;
             item.anchors.horizontalCenter = lockScreen.horizontalCenter;
+            item.anchors.bottomMargin = bottomM;
             break;
-        default:
+        default: // bottom-right
             item.anchors.bottom = lockScreen.bottom;
             item.anchors.right = lockScreen.right;
+            item.anchors.bottomMargin = bottomM;
+            item.anchors.rightMargin = rightM;
         }
     }
 
+    // Interaction Overlays
     MouseArea {
         id: lockScreenMouseArea
         hoverEnabled: true
         z: -1
-        anchors.fill: lockScreen
+        anchors.fill: parent
         onClicked: lockScreen.loginRequested()
     }
 

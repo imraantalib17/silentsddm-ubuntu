@@ -10,35 +10,42 @@ Item {
     signal userChanged(userIndex: int, username: string, userRealName: string, userIcon: string, needsPassword: bool)
 
     property bool listUsers: false
-    property string orientation: ""
+    property string orientation: "horizontal"
     property bool isDragging: false
 
     function prevUser() {
-        userList.decrementCurrentIndex();
+        if (userModel.rowCount() > 1) {
+            userList.currentIndex = (userList.currentIndex + userModel.rowCount() - 1) % userModel.rowCount();
+        }
     }
+    
     function nextUser() {
-        userList.incrementCurrentIndex();
+        if (userModel.rowCount() > 1) {
+            userList.currentIndex = (userList.currentIndex + 1) % userModel.rowCount();
+        }
     }
 
     ListView {
         id: userList
         anchors.fill: parent
         orientation: selector.orientation === "horizontal" ? ListView.Horizontal : ListView.Vertical
-        spacing: 10
+        spacing: 12 * Config.generalScale
         interactive: false
         boundsBehavior: Flickable.StopAtBounds
 
-        // Center the active avatar
-        preferredHighlightBegin: selector.orientation === "horizontal" ? (width - Config.avatarActiveSize * Config.generalScale) / 2 : (height - Config.avatarActiveSize * Config.generalScale) / 2
+        // Safe evaluation of highlighting engine centers
+        preferredHighlightBegin: selector.orientation === "horizontal" ? 
+            ((parent.width - (Config.avatarActiveSize * Config.generalScale)) / 2) : 
+            ((parent.height - (Config.avatarActiveSize * Config.generalScale)) / 2)
         preferredHighlightEnd: preferredHighlightBegin
         highlightRangeMode: ListView.StrictlyEnforceRange
-        // Padding for centering
+        
+        // Dynamic padding to support seamless centering profiles
         leftMargin: selector.orientation === "horizontal" ? preferredHighlightBegin : 0
-        rightMargin: leftMargin
+        rightMargin: selector.orientation === "horizontal" ? preferredHighlightBegin : 0
         topMargin: selector.orientation === "horizontal" ? 0 : preferredHighlightBegin
-        bottomMargin: topMargin
+        bottomMargin: selector.orientation === "horizontal" ? 0 : preferredHighlightBegin
 
-        // Animation properties
         highlightMoveDuration: 200
         highlightResizeDuration: 200
         highlightMoveVelocity: -1
@@ -46,19 +53,24 @@ Item {
 
         model: userModel
         currentIndex: userModel.lastIndex
+        
         onCurrentIndexChanged: {
-            var username = userModel.data(userModel.index(currentIndex, 0), 257);
-            var userRealName = userModel.data(userModel.index(currentIndex, 0), 258);
-            var userIcon = userModel.data(userModel.index(currentIndex, 0), 260);
-            var needsPasswd = userModel.data(userModel.index(currentIndex, 0), 261);
+            if (currentIndex >= 0 && currentIndex < userModel.rowCount()) {
+                var username = userModel.data(userModel.index(currentIndex, 0), 257) || "";
+                var userRealName = userModel.data(userModel.index(currentIndex, 0), 258) || "";
+                var userIcon = userModel.data(userModel.index(currentIndex, 0), 260) || "";
+                var needsPasswd = userModel.data(userModel.index(currentIndex, 0), 261) !== false;
 
-            sddm.currentUser = username;
-            selector.userChanged(currentIndex, username, userRealName, userIcon, needsPasswd);
+                sddm.currentUser = username;
+                selector.userChanged(currentIndex, username, userRealName, userIcon, needsPasswd);
+            }
         }
 
         delegate: Rectangle {
+            id: delegateRoot
             width: index === userList.currentIndex ? (Config.avatarActiveSize * Config.generalScale) : (Config.avatarInactiveSize * Config.generalScale)
             height: index === userList.currentIndex ? (Config.avatarActiveSize * Config.generalScale) : (Config.avatarInactiveSize * Config.generalScale)
+            
             anchors {
                 verticalCenter: selector.orientation === "horizontal" ? parent.verticalCenter : undefined
                 horizontalCenter: selector.orientation === "horizontal" ? undefined : parent.horizontalCenter
@@ -68,97 +80,81 @@ Item {
 
             Behavior on width {
                 enabled: Config.enableAnimations
-                NumberAnimation {
-                    duration: 200
-                    easing.type: Easing.OutQuad
-                }
+                NumberAnimation { duration: 200; easing.type: Easing.OutQuad }
             }
             Behavior on height {
                 enabled: Config.enableAnimations
-                NumberAnimation {
-                    duration: 200
-                    easing.type: Easing.OutQuad
-                }
+                NumberAnimation { duration: 200; easing.type: Easing.OutQuad }
             }
+            
             opacity: selector.listUsers || index === userList.currentIndex ? 1.0 : 0.0
             Behavior on opacity {
                 enabled: Config.enableAnimations
-                NumberAnimation {
-                    duration: 200
-                }
+                NumberAnimation { duration: 200 }
             }
 
             Avatar {
-                width: parent.width
-                height: parent.height
-                source: model.icon
+                id: userAvatar
+                anchors.fill: parent
+                source: model.icon || ""
                 active: index === userList.currentIndex
                 opacity: active ? 1.0 : Config.avatarInactiveOpacity
-                enabled: userModel.rowCount() > 1 // No need to open the selector if there's only one user
-                tooltipText: active && selector.listUsers ? (Config.avatarAlwaysActive ? "" : "Close user selection") : (active && !listUsers ? "Select user" : model.name)
-                showTooltip: selector.focus && !listUsers && active
+                enabled: userModel.rowCount() > 1
+                tooltipText: active && selector.listUsers ? (Config.avatarAlwaysActive ? "" : "Close user selection") : (active && !selector.listUsers ? "Select user" : model.name)
+                showTooltip: selector.focus && !selector.listUsers && active
 
                 Behavior on opacity {
                     enabled: Config.enableAnimations
-                    NumberAnimation {
-                        duration: 200
-                    }
+                    NumberAnimation { duration: 200 }
                 }
 
                 onClicked: {
                     if (!selector.listUsers) {
-                        // Open selector
                         selector.openUserList();
                         selector.focus = true;
-                        userList.model.reset();
                     } else {
-                        // Collapse the list if the selected user gets another click
                         if (index === userList.currentIndex) {
                             selector.closeUserList();
                             selector.focus = false;
+                        } else {
+                            userList.currentIndex = index;
                         }
-                        userList.currentIndex = index;
                     }
                 }
+                
                 onClickedOutside: {
-                    selector.closeUserList();
-                    selector.focus = false;
+                    if (selector.listUsers) {
+                        selector.closeUserList();
+                        selector.focus = false;
+                    }
                 }
             }
         }
     }
 
     Keys.onPressed: function (event) {
-        if (event.key == Qt.Key_Return || event.key == Qt.Key_Enter || event.key === Qt.Key_Space) {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
             if (selector.listUsers) {
                 selector.closeUserList();
                 selector.focus = false;
-            } else {
+            } else if (userModel.rowCount() > 1) {
                 selector.openUserList();
                 selector.focus = true;
             }
             event.accepted = true;
-        } else if (event.key == Qt.Key_Escape) {
+        } else if (event.key === Qt.Key_Escape) {
             selector.closeUserList();
             selector.focus = false;
             event.accepted = true;
-        } else if ((selector.orientation === "horizontal" && event.key == Qt.Key_Left) || (selector.orientation === "vertical" && event.key == Qt.Key_Up)) {
-            if (userModel.rowCount() > 0) {
-                userList.currentIndex = (userList.currentIndex + userModel.rowCount() - 1) % userModel.rowCount();
-            }
+        } else if ((selector.orientation === "horizontal" && event.key === Qt.Key_Left) || (selector.orientation === "vertical" && event.key === Qt.Key_Up)) {
+            selector.prevUser();
             selector.focus = true;
             event.accepted = true;
-        } else if ((selector.orientation === "horizontal" && event.key == Qt.Key_Right) || (selector.orientation === "vertical" && event.key == Qt.Key_Down)) {
-            if (userModel.rowCount() > 0) {
-                userList.currentIndex = (userList.currentIndex + userModel.rowCount() + 1) % userModel.rowCount();
-            }
+        } else if ((selector.orientation === "horizontal" && event.key === Qt.Key_Right) || (selector.orientation === "vertical" && event.key === Qt.Key_Down)) {
+            selector.nextUser();
             selector.focus = true;
-            event.accepted = true;
-        } else if (event.key === Qt.Key_CapsLock) {
-            root.capsLockOn = !root.capsLockOn;
             event.accepted = true;
         } else {
-            // Do not steal other keys
             event.accepted = false;
         }
     }

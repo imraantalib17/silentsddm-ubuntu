@@ -4,23 +4,30 @@ import QtQuick.Controls
 
 ColumnLayout {
     id: selector
-    width: Config.powerPopupWidth * Config.generalScale
-    spacing: 2
+    
+    property bool active: visible
+
+    // Enforce matching dimensions across layout contexts
+    Layout.preferredWidth: Config.powerPopupWidth * Config.generalScale
+    Layout.fillWidth: true
+    spacing: 2 * Config.generalScale
 
     signal close
 
-    KeyNavigation.up: shutdownButton
-    KeyNavigation.down: suspendButton
+    // Set initial structural item focus target when menu becomes active
+    onActiveChanged: {
+        if (active) {
+            shutdownButton.forceActiveFocus();
+        }
+    }
 
     IconButton {
         id: suspendButton
 
-        preferredWidth: Layout.preferredWidth
+        Layout.fillWidth: true
         Layout.preferredHeight: Config.menuAreaPopupsItemHeight * Config.generalScale
-        Layout.preferredWidth: Config.powerPopupWidth * Config.generalScale
+        preferredWidth: Config.powerPopupWidth * Config.generalScale
 
-        focus: selector.visible
-        width: Layout.preferredWidth
         enabled: sddm.canSuspend
         icon: Config.getIcon("power-suspend.svg")
         contentColor: Config.menuAreaPopupsContentColor
@@ -31,11 +38,12 @@ ColumnLayout {
         activeBackgroundOpacity: Config.menuAreaPopupsActiveOptionBackgroundOpacity
         iconSize: Config.menuAreaPopupsIconSize
         fontSize: Config.menuAreaPopupsFontSize
+        label: textConstants.suspend
+
         onClicked: {
             selector.close();
             sddm.suspend();
         }
-        label: textConstants.suspend
 
         KeyNavigation.up: shutdownButton
         KeyNavigation.down: rebootButton
@@ -44,12 +52,10 @@ ColumnLayout {
     IconButton {
         id: rebootButton
 
-        preferredWidth: Layout.preferredWidth
+        Layout.fillWidth: true
         Layout.preferredHeight: Config.menuAreaPopupsItemHeight * Config.generalScale
-        Layout.preferredWidth: Config.powerPopupWidth * Config.generalScale
+        preferredWidth: Config.powerPopupWidth * Config.generalScale
 
-        focus: selector.visible
-        width: Layout.preferredWidth
         enabled: sddm.canReboot
         icon: Config.getIcon("power-reboot.svg")
         contentColor: Config.menuAreaPopupsContentColor
@@ -60,11 +66,12 @@ ColumnLayout {
         activeBackgroundOpacity: Config.menuAreaPopupsActiveOptionBackgroundOpacity
         iconSize: Config.menuAreaPopupsIconSize
         fontSize: Config.menuAreaPopupsFontSize
+        label: textConstants.reboot
+
         onClicked: {
             selector.close();
             sddm.reboot();
         }
-        label: textConstants.reboot
 
         KeyNavigation.up: suspendButton
         KeyNavigation.down: shutdownButton
@@ -73,12 +80,10 @@ ColumnLayout {
     IconButton {
         id: shutdownButton
 
-        preferredWidth: Layout.preferredWidth
+        Layout.fillWidth: true
         Layout.preferredHeight: Config.menuAreaPopupsItemHeight * Config.generalScale
-        Layout.preferredWidth: Config.powerPopupWidth * Config.generalScale
+        preferredWidth: Config.powerPopupWidth * Config.generalScale
 
-        focus: selector.visible
-        width: Layout.preferredWidth
         enabled: sddm.canPowerOff
         icon: Config.getIcon("power.svg")
         contentColor: Config.menuAreaPopupsContentColor
@@ -89,21 +94,26 @@ ColumnLayout {
         activeBackgroundOpacity: Config.menuAreaPopupsActiveOptionBackgroundOpacity
         iconSize: Config.menuAreaPopupsIconSize
         fontSize: Config.menuAreaPopupsFontSize
+        label: textConstants.shutdown
+
         onClicked: {
             selector.close();
             sddm.powerOff();
         }
-        label: textConstants.shutdown
 
         KeyNavigation.up: rebootButton
         KeyNavigation.down: suspendButton
     }
 
     Keys.onPressed: function (event) {
-        if (event.key == Qt.Key_Return || event.key == Qt.Key_Enter || event.key === Qt.Key_Space) {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
             selector.close();
-        } else if (event.key === Qt.Key_CapsLock) {
-            root.capsLockOn = !root.capsLockOn;
+            event.accepted = true;
+        } else if (event.key === Qt.Key_Escape) {
+            selector.close();
+            event.accepted = true;
+        } else {
+            event.accepted = false;
         }
     }
 }

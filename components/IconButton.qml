@@ -31,9 +31,11 @@ Item {
     property color borderColor: isActive ? iconButton.activeContentColor : iconButton.contentColor
     property int preferredWidth: -1
 
-    width: preferredWidth !== -1 ? (preferredWidth * Config.generalScale) : buttonContentRow.width // childrenRect doesn't update for some reason
+    // Robust fallbacks to prevent width engine layout loops
+    width: preferredWidth !== -1 ? (preferredWidth * Config.generalScale) : buttonContentRow.implicitWidth
     height: iconSize * 2 * Config.generalScale
 
+    // Core Solid Background Layer Fill
     Rectangle {
         id: buttonBackground
         anchors.fill: parent
@@ -46,12 +48,15 @@ Item {
 
         Behavior on opacity {
             enabled: Config.enableAnimations
-            NumberAnimation {
-                duration: 250
-            }
+            NumberAnimation { duration: 250 }
+        }
+        Behavior on color {
+            enabled: Config.enableAnimations
+            ColorAnimation { duration: 250 }
         }
     }
 
+    // Outer Structural Border Overlay
     Rectangle {
         id: buttonBorder
         color: "transparent"
@@ -67,9 +72,10 @@ Item {
         }
     }
 
+    // Alignment Content Grid
     RowLayout {
         id: buttonContentRow
-        height: parent.height
+        anchors.fill: parent
         spacing: 0
 
         Rectangle {
@@ -86,30 +92,26 @@ Item {
                 height: width
                 sourceSize: Qt.size(width, height)
                 fillMode: Image.PreserveAspectFit
-                visible: false // Apparently `MultiEffect.colorization` replaces the Image
+                visible: false 
             }
 
             MultiEffect {
                 id: iconEffect
                 source: buttonIcon
                 anchors.fill: buttonIcon
-                colorization: 1
+                colorization: 1.0
                 colorizationColor: iconButton.isActive ? iconButton.activeContentColor : iconButton.contentColor
                 antialiasing: true
                 opacity: iconButton.enabled ? 1.0 : 0.5
 
                 Behavior on opacity {
                     enabled: Config.enableAnimations
-                    NumberAnimation {
-                        duration: 250
-                    }
+                    NumberAnimation { duration: 250 }
                 }
 
                 Behavior on colorizationColor {
                     enabled: Config.enableAnimations
-                    ColorAnimation {
-                        duration: 250
-                    }
+                    ColorAnimation { duration: 250 }
                 }
             }
         }
@@ -127,33 +129,27 @@ Item {
             rightPadding: 10
             color: iconButton.isActive ? iconButton.activeContentColor : iconButton.contentColor
             opacity: iconButton.enabled ? 1.0 : 0.5
+
             Behavior on opacity {
                 enabled: Config.enableAnimations
-                NumberAnimation {
-                    duration: 250
-                }
-            }
-            Component.onCompleted: {
-                if (iconButton.preferredWidth !== -1) {
-                    Layout.preferredWidth = iconButton.width - iconContainer.width;
-                }
+                NumberAnimation { duration: 250 }
             }
         }
     }
 
+    // Selection/Hover Surface Handler
     MouseArea {
         id: mouseArea
         anchors.fill: parent
-        hoverEnabled: parent.enabled
+        hoverEnabled: iconButton.enabled
         onClicked: iconButton.clicked()
         cursorShape: Qt.PointingHandCursor
 
         ToolTip {
             id: toolTipControl
-            parent: mouseArea
-            enabled: Config.tooltipsEnable
-            property bool shouldShow: enabled && mouseArea.containsMouse && iconButton.tooltipText !== "" || enabled && iconButton.focus && iconButton.tooltipText !== ""
-            visible: shouldShow
+            parent: iconButton
+            enabled: Config.tooltipsEnable && iconButton.tooltipText !== ""
+            visible: enabled && (mouseArea.containsMouse || iconButton.focus)
             delay: 300
             y: -height - 10
             x: (parent.width - width) / 2
@@ -167,8 +163,8 @@ Item {
             }
 
             background: Rectangle {
-                implicitWidth: tooltipTextElement.implicitWidth + (toolTipControl.leftPadding + toolTipControl.rightPadding)
-                implicitHeight: tooltipTextElement.implicitHeight + (toolTipControl.topPadding + toolTipControl.bottomPadding)
+                implicitWidth: tooltipTextElement.implicitWidth + 16
+                implicitHeight: tooltipTextElement.implicitHeight + 8
                 color: Config.tooltipsBackgroundColor
                 opacity: Config.tooltipsBackgroundOpacity
                 border.width: 0
@@ -178,8 +174,9 @@ Item {
     }
 
     Keys.onPressed: function (event) {
-        if (event.key == Qt.Key_Return || event.key == Qt.Key_Enter || event.key === Qt.Key_Space) {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
             iconButton.clicked();
+            event.accepted = true;
         }
     }
 }

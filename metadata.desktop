@@ -1,19 +1,20 @@
 ; https://github.com/uiriansan/SilentSDDM
 
 [SddmGreeterTheme]
-Name=Silent
+Name=Silent Ubuntu Edition
 Type=sddm-theme
-Description=A very customizable SDDM theme that actually looks good.
+Description=A beautiful, minimal Qt6 SDDM theme tailored with Ubuntu branding colors.
 License=GPL-3.0-or-later
 Version=1.5.0
-Theme-Id=silent
+Theme-Id=silent-ubuntu
 Theme-API=2.0
 MainScript=Main.qml
 Screenshot=docs/previews/default.png
 TranslationsDirectory=translations
 QtVersion=6
 
-ConfigFile=configs/default.conf
+ConfigFile=theme.conf
+# ConfigFile=configs/default.conf
 # ConfigFile=configs/default-left.conf
 # ConfigFile=configs/default-right.conf
 # ConfigFile=configs/rei.conf

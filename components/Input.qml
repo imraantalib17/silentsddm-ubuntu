@@ -33,6 +33,13 @@ Item {
         verticalAlignment: TextField.AlignVCenter
         font.family: Config.passwordInputFontFamily
         font.pixelSize: Math.max(8, Config.passwordInputFontSize * Config.generalScale)
+        
+        // Dynamic text styling padding calculation
+        leftPadding: Config.passwordInputDisplayIcon ? (Config.passwordInputHeight * Config.generalScale) : 12
+        rightPadding: 12
+        onAccepted: input.accepted()
+
+        // Background Layer Color/Opacity Fill
         background: Rectangle {
             anchors.fill: parent
             color: Config.passwordInputBackgroundColor
@@ -42,10 +49,8 @@ Item {
             topRightRadius: input.splitBorderRadius ? Config.passwordInputBorderRadiusRight * Config.generalScale : Config.passwordInputBorderRadiusLeft * Config.generalScale
             bottomRightRadius: input.splitBorderRadius ? Config.passwordInputBorderRadiusRight * Config.generalScale : Config.passwordInputBorderRadiusLeft * Config.generalScale
         }
-        leftPadding: placeholderLabel.x
-        rightPadding: 10
-        onAccepted: input.accepted()
 
+        // Structural Border Overlay
         Rectangle {
             anchors.fill: parent
             border.width: Config.passwordInputBorderSize * Config.generalScale
@@ -57,58 +62,57 @@ Item {
             bottomRightRadius: input.splitBorderRadius ? Config.passwordInputBorderRadiusRight * Config.generalScale : Config.passwordInputBorderRadiusLeft * Config.generalScale
         }
 
-        Row {
-            anchors.fill: parent
-            spacing: 0
-            leftPadding: Config.passwordInputDisplayIcon ? 2 : 10
+        // Icon Housing Overlay Component
+        Rectangle {
+            id: iconContainer
+            color: "transparent"
+            visible: Config.passwordInputDisplayIcon
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: height
 
-            Rectangle {
-                id: iconContainer
-                color: "transparent"
-                visible: Config.passwordInputDisplayIcon
-                height: parent.height
-                width: height
-
-                Image {
-                    id: icon
-                    source: input.icon
-                    anchors.centerIn: parent
-                    width: Math.max(1, Config.passwordInputIconSize * Config.generalScale)
-                    height: width
-                    sourceSize: Qt.size(width, height)
-                    fillMode: Image.PreserveAspectFit
-                    opacity: input.enabled ? 1.0 : 0.3
-                    Behavior on opacity {
-                        enabled: Config.enableAnimations
-                        NumberAnimation {
-                            duration: 250
-                        }
-                    }
-
-                    MultiEffect {
-                        source: parent
-                        anchors.fill: parent
-                        colorization: 1
-                        colorizationColor: textField.color
-                    }
+            Image {
+                id: innerIcon
+                source: input.icon
+                anchors.centerIn: parent
+                width: Math.max(1, Config.passwordInputIconSize * Config.generalScale)
+                height: width
+                sourceSize: Qt.size(width, height)
+                fillMode: Image.PreserveAspectFit
+                visible: false
+                opacity: input.enabled ? 1.0 : 0.3
+                
+                Behavior on opacity {
+                    enabled: Config.enableAnimations
+                    NumberAnimation { duration: 250 }
                 }
             }
 
-            Text {
-                id: placeholderLabel
-                anchors {
-                    verticalCenter: parent.verticalCenter
-                }
-                padding: 0
-                visible: textField.text.length === 0 && (!textField.preeditText || textField.preeditText.length === 0)
-                text: input.placeholder
-                color: textField.color
-                font.pixelSize: Math.max(8, textField.font.pixelSize || 12)
-                font.family: textField.font.family || "sans-serif"
-                horizontalAlignment: Text.AlignLeft
-                verticalAlignment: textField.verticalAlignment
-                font.italic: true
+            MultiEffect {
+                source: innerIcon
+                anchors.fill: innerIcon
+                colorization: 1.0
+                colorizationColor: textField.color
+                visible: innerIcon.visible || true
             }
+        }
+
+        // Floating Placeholder Prompt Typography label
+        Text {
+            id: placeholderLabel
+            anchors.left: parent.left
+            anchors.leftMargin: textField.leftPadding
+            anchors.verticalCenter: parent.verticalCenter
+            visible: textField.text.length === 0 && (!textField.preeditText || textField.preeditText.length === 0)
+            text: input.placeholder
+            color: textField.color
+            opacity: 0.5 // Standard legible alpha blend for descriptive prompts
+            font.pixelSize: textField.font.pixelSize
+            font.family: textField.font.family
+            horizontalAlignment: Text.AlignLeft
+            verticalAlignment: textField.verticalAlignment
+            font.italic: true
         }
     }
 }

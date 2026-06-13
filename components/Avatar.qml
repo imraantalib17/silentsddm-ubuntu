@@ -4,10 +4,11 @@ import QtQuick.Controls
 
 Rectangle {
     id: avatar
+    
     property string shape: Config.avatarShape
     property string source: ""
     property bool active: false
-    property int squareRadius: (shape == "circle") ? this.width : (Config.avatarBorderRadius === 0 ? 1 : Config.avatarBorderRadius * Config.generalScale) // min: 1
+    property int squareRadius: (shape === "circle") ? (width / 2) : (Config.avatarBorderRadius === 0 ? 1 : Config.avatarBorderRadius * Config.generalScale)
     property bool drawStroke: (active && Config.avatarActiveBorderSize > 0) || (!active && Config.avatarInactiveBorderSize > 0)
     property color strokeColor: active ? Config.avatarActiveBorderColor : Config.avatarInactiveBorderColor
     property int strokeSize: active ? (Config.avatarActiveBorderSize * Config.generalScale) : (Config.avatarInactiveBorderSize * Config.generalScale)
@@ -21,24 +22,22 @@ Rectangle {
     color: "transparent"
     antialiasing: true
 
-    // Background
+    // Persistent Color Fill Base Underlay Layer
     Rectangle {
         anchors.fill: parent
         radius: avatar.squareRadius
         color: Config.passwordInputBackgroundColor
         opacity: Config.passwordInputBackgroundOpacity
-        visible: true
     }
 
     Image {
         id: faceImage
-        source: parent.source
+        source: avatar.source
         anchors.fill: parent
         mipmap: true
         antialiasing: true
         visible: false
         smooth: true
-
         fillMode: Image.PreserveAspectCrop
         horizontalAlignment: Image.AlignHCenter
         verticalAlignment: Image.AlignVCenter
@@ -46,23 +45,15 @@ Rectangle {
         onStatusChanged: {
             if (status === Image.Error) {
                 source = Config.getIcon("user-default");
-                faceEffects.colorization = 1;
+                faceEffects.colorization = 1.0;
             }
         }
-
-        // Border
-        Rectangle {
-            anchors.fill: parent
-            radius: avatar.squareRadius
-            color: "transparent"
-            border.width: avatar.strokeSize
-            border.color: avatar.strokeColor
-            antialiasing: true
-        }
     }
+
+    // Advanced Clipping Mask Assembly Block
     MultiEffect {
         id: faceEffects
-        anchors.fill: faceImage
+        anchors.fill: parent
         source: faceImage
         antialiasing: true
         maskEnabled: true
@@ -70,26 +61,36 @@ Rectangle {
         maskSpreadAtMin: 1.0
         maskThresholdMax: 1.0
         maskThresholdMin: 0.5
-        colorization: 0
+        colorization: 0.0
         colorizationColor: avatar.strokeColor === Config.passwordInputBackgroundColor && (1.0 - Config.passwordInputBackgroundOpacity < 0.3) ? Config.passwordInputContentColor : avatar.strokeColor
     }
 
     Item {
         id: faceImageMask
-
-        height: this.width
+        anchors.fill: parent
         layer.enabled: true
         layer.smooth: true
         visible: false
-        width: faceImage.width
 
         Rectangle {
-            height: this.width
+            anchors.fill: parent
             radius: avatar.squareRadius
-            width: faceImage.width
+            color: "black" // High opacity alpha anchor for alpha-blending logic
         }
     }
 
+    // Foreground Stroke Frame Overlay Layer (Placed over MultiEffect to avoid clipping pixelation)
+    Rectangle {
+        anchors.fill: parent
+        radius: avatar.squareRadius
+        color: "transparent"
+        border.width: avatar.drawStroke ? avatar.strokeSize : 0
+        border.color: avatar.strokeColor
+        antialiasing: true
+        visible: avatar.drawStroke
+    }
+
+    // Precise Geometric Bounds Input Surface Mapping Handler
     MouseArea {
         id: mouseArea
         anchors.fill: parent
@@ -99,20 +100,15 @@ Rectangle {
         function isCursorInsideAvatar() {
             if (!mouseArea.containsMouse)
                 return false;
-            if (avatar.shape === "square")
+            if (avatar.shape !== "circle")
                 return true;
 
-            // Ellipse center and radius
+            // Mathematical calculation mapping circle radius limits cleanly
             var centerX = width / 2;
             var centerY = height / 2;
-            var radiusX = centerX;
-            var radiusY = centerY;
+            var dx = (mouseArea.mouseX - centerX) / centerX;
+            var dy = (mouseArea.mouseY - centerY) / centerY;
 
-            // Distance from center
-            var dx = (mouseArea.mouseX - centerX) / radiusX;
-            var dy = (mouseArea.mouseY - centerY) / radiusY;
-
-            // Check if pointer is inside the ellipse
             return (dx * dx + dy * dy) <= 1.0;
         }
 
@@ -127,11 +123,7 @@ Rectangle {
         }
 
         function updateHover() {
-            if (isCursorInsideAvatar()) {
-                cursorShape = Qt.PointingHandCursor;
-            } else {
-                cursorShape = Qt.ArrowCursor;
-            }
+            cursorShape = isCursorInsideAvatar() ? Qt.PointingHandCursor : Qt.ArrowCursor;
         }
 
         onMouseXChanged: updateHover()
@@ -139,10 +131,9 @@ Rectangle {
 
         ToolTip {
             id: toolTipControl
-            parent: mouseArea
-            enabled: Config.tooltipsEnable && !Config.tooltipsDisableUser
-            property bool shouldShow: enabled && avatar.showTooltip || (enabled && mouseArea.isCursorInsideAvatar() && avatar.tooltipText !== "")
-            visible: shouldShow
+            parent: avatar
+            enabled: Config.tooltipsEnable && !Config.tooltipsDisableUser && avatar.tooltipText !== ""
+            visible: enabled && (avatar.showTooltip || mouseArea.isCursorInsideAvatar())
             delay: 300
             y: -height - 10
             x: (parent.width - width) / 2
@@ -154,9 +145,10 @@ Rectangle {
                 text: avatar.tooltipText
                 color: Config.tooltipsContentColor
             }
+            
             background: Rectangle {
-                implicitWidth: tooltipTextElement.implicitWidth + (toolTipControl.leftPadding + toolTipControl.rightPadding)
-                implicitHeight: tooltipTextElement.implicitHeight + (toolTipControl.topPadding + toolTipControl.bottomPadding)
+                implicitWidth: tooltipTextElement.implicitWidth + 16
+                implicitHeight: tooltipTextElement.implicitHeight + 8
                 color: Config.tooltipsBackgroundColor
                 opacity: Config.tooltipsBackgroundOpacity
                 border.width: 0

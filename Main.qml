@@ -44,7 +44,7 @@ Item {
                 brightness: Config.lockScreenBrightness
                 saturation: Config.lockScreenSaturation
             }
-        },
+        }
         State {
             name: "loginState"
             PropertyChanges {
@@ -95,7 +95,7 @@ Item {
         // y: geometry.y
         // width: geometry.width
         // height: geometry.height
-		anchors.fill: parent
+        anchors.fill: parent
 
         // AnimatedImage { // `.gif`s are seg faulting with multi monitors... QT/SDDM issue?
         Image {
@@ -159,7 +159,7 @@ Item {
                 id: backgroundColor
                 anchors.fill: parent
                 anchors.margins: 0
-                color: root.state === "lockState" && Config.lockScreenUseBackgroundColor ? Config.lockScreenBackgroundColor : root.state === "loginState" && Config.loginScreenUseBackgroundColor ? Config.loginScreenBackgroundColor : "black"
+                color: root.state === "lockState" && Config.lockScreenUseBackgroundColor ? Config.lockScreenBackgroundColor : root.state === "loginState" && Config.loginScreenUseBackgroundColor ? Config.loginScreenBackgroundColor : "#2C001E"
                 visible: parent.displayColor || (backgroundVideo.visible && parent.placeholder.length === 0)
             }
 
@@ -192,52 +192,3 @@ Item {
                         backgroundImage.displayColor = true;
                     }
                 }
-            }
-
-            // Overkill, but fine...
-            Component.onDestruction: {
-                if (backgroundVideo) {
-                    backgroundVideo.stop();
-                    backgroundVideo.source = "";
-                }
-            }
-        }
-        MultiEffect {
-            // Background effects
-            id: backgroundEffect
-            source: backgroundImage
-            anchors.fill: parent
-            blurEnabled: backgroundImage.visible && blurMax > 0
-            blur: blurMax > 0 ? 1.0 : 0.0
-            autoPaddingEnabled: false
-        }
-
-        Item {
-            id: screenContainer
-            anchors.fill: parent
-            anchors.top: parent.top
-
-            LockScreen {
-                id: lockScreen
-                z: root.state === "lockState" ? 2 : 1 // Fix tooltips from the login screen showing up on top of the lock screen.
-                anchors.fill: parent
-                focus: root.state === "lockState"
-                enabled: root.state === "lockState"
-                onLoginRequested: {
-                    root.state = "loginState";
-                    loginScreen.resetFocus();
-                }
-            }
-            LoginScreen {
-                id: loginScreen
-                z: root.state === "loginState" ? 2 : 1
-                anchors.fill: parent
-                enabled: root.state === "loginState"
-                opacity: 0.0
-                onClose: {
-                    root.state = "lockState";
-                }
-            }
-        }
-    }
-}

@@ -10,13 +10,15 @@ Item {
 
     state: "normal"
     property bool stateChanging: false
-    function safeStateChange(newState) { // This is probably overkill, but whatever
+
+    function safeStateChange(newState) {
         if (!stateChanging) {
             stateChanging = true;
             state = newState;
             stateChanging = false;
         }
     }
+
     onStateChanged: {
         if (state === "normal") {
             resetFocus();
@@ -28,18 +30,17 @@ Item {
     readonly property alias loginContainer: loginContainer
 
     property bool showKeyboard: !Config.virtualKeyboardStartHidden
-
     property bool foundUsers: userModel.count > 0
 
     property int computedInputMethodHintsOnly: {
-		if(Config.virtualKeyboardRestrictInput === "digits") {
-			return Qt.ImhDigitsOnly;
-		} else {
-			return Qt.ImhNone;
-		}
+        if(Config.virtualKeyboardRestrictInput === "digits") {
+            return Qt.ImhDigitsOnly;
+        } else {
+            return Qt.ImhNone;
+        }
     }
 
-    // Login info
+    // Login State Tracking Variables
     property int sessionIndex: 0
     property int userIndex: 0
     property string userName: ""
@@ -56,7 +57,9 @@ Item {
             loginMessage.warn(textConstants.promptUser || "Enter your user!", "error");
         }
     }
+
     Connections {
+        target: sddm
         function onLoginSucceeded() {
             loginContainer.scale = 0.0;
         }
@@ -67,13 +70,6 @@ Item {
         }
         function onInformationMessage(message) {
             loginMessage.warn(message, "error");
-        }
-        target: sddm
-    }
-
-    Component.onDestruction: {
-        if (typeof connections !== 'undefined') {
-            connections.target = null;
         }
     }
 
@@ -97,20 +93,18 @@ Item {
         }
     }
 
+    // Master Layout Frame Container
     Item {
         id: loginContainer
-        width: Config.loginAreaPosition === "left" || Config.loginAreaPosition === "right" ? (Config.avatarActiveSize + Config.usernameMargin + loginArea.width) : userSelector.width
+        width: Config.loginAreaPosition === "left" || Config.loginAreaPosition === "right" ? ((Config.avatarActiveSize * Config.generalScale) + Config.usernameMargin + loginLayout.width) : userSelector.width
         height: childrenRect.height
-        scale: 0.5 // Initial animation
+        scale: 0.5 
 
         Behavior on scale {
             enabled: Config.enableAnimations
-            NumberAnimation {
-                duration: 200
-            }
+            NumberAnimation { duration: 200 }
         }
 
-        // LoginArea position
         Component.onCompleted: {
             if (Config.loginAreaPosition === "left") {
                 anchors.verticalCenter = parent.verticalCenter;
@@ -144,6 +138,7 @@ Item {
             }
         }
 
+        // [Fallthrough Input Layout: No Users Detected]
         Item {
             id: noUsersLoginArea
             width: Config.passwordInputWidth * Config.generalScale + (loginButton.visible ? Config.passwordInputHeight * Config.generalScale + Config.loginButtonMarginLeft : 0)
@@ -152,21 +147,11 @@ Item {
 
             Text {
                 id: noUsersMessage
-                anchors {
-                    top: parent.top
-                }
+                anchors.top: parent.top
                 width: parent.width
                 text: "SDDM could not find any user. Type your username below:"
                 wrapMode: Text.Wrap
-                horizontalAlignment: {
-                    if (Config.loginAreaPosition === "left") {
-                        horizontalAlignment: Text.AlignLeft;
-                    } else if (Config.loginAreaPosition === "right") {
-                        horizontalAlignment: Text.AlignRight;
-                    } else {
-                        horizontalAlignment: Text.AlignHCenter;
-                    }
-                }
+                horizontalAlignment: Config.loginAreaPosition === "left" ? Text.AlignLeft : (Config.loginAreaPosition === "right" ? Text.AlignRight : Text.AlignHCenter)
                 color: Config.warningMessageErrorColor
                 font.pixelSize: Math.max(8, Config.passwordInputFontSize * Config.generalScale)
                 font.family: Config.passwordInputFontFamily
@@ -174,13 +159,11 @@ Item {
 
             Input {
                 id: userInput
-                anchors {
-                    top: noUsersMessage.bottom
-                    topMargin: Config.usernameMargin
-                }
+                anchors.top: noUsersMessage.bottom
+                anchors.topMargin: Config.usernameMargin
                 width: parent.width
-                icon: Config.getIcon("user-default")
-                placeholder: (textConstants && textConstants.userName) ? textConstants.userName : "Password"
+                icon: theme.url + "/icons/user-default.svg"
+                placeholder: (textConstants && textConstants.userName) ? textConstants.userName : "Username"
                 isPassword: false
                 inputMethodHints: loginScreen.computedInputMethodHintsOnly
                 splitBorderRadius: false
@@ -202,6 +185,7 @@ Item {
             }
         }
 
+        // [User Selector Node Wrapper]
         UserSelector {
             id: userSelector
             listUsers: loginScreen.state === "selectingUser" || Config.avatarAlwaysActive
@@ -211,12 +195,13 @@ Item {
             orientation: Config.loginAreaPosition === "left" || Config.loginAreaPosition === "right" ? "vertical" : "horizontal"
             width: orientation === "horizontal" ? loginScreen.width - Config.loginAreaMargin * 2 : (Config.avatarActiveSize * Config.generalScale)
             height: orientation === "horizontal" ? (Config.avatarActiveSize * Config.generalScale) : loginScreen.height - Config.loginAreaMargin * 2
+            
             onOpenUserList: {
                 safeStateChange("selectingUser");
             }
             onCloseUserList: {
                 safeStateChange("normal");
-                loginScreen.resetFocus(); // resetFocus with escape even if the selector is not open
+                loginScreen.resetFocus();
             }
             onUserChanged: (index, name, realName, icon, needsPassword) => {
                 if (loginScreen.foundUsers) {
@@ -238,12 +223,12 @@ Item {
             }
         }
 
+        // [Interactive Login Area: Account Fields]
         Item {
             id: loginLayout
             height: activeUserName.height + Config.passwordInputMarginTop + loginArea.height
             width: loginArea.width > activeUserName.width ? loginArea.width : activeUserName.width
 
-            // LoginArea alignment
             Component.onCompleted: {
                 if (Config.loginAreaPosition === "left") {
                     anchors.verticalCenter = parent.verticalCenter;
@@ -312,7 +297,7 @@ Item {
                     Layout.alignment: Qt.AlignHCenter
                     enabled: loginScreen.state === "normal"
                     visible: loginScreen.userNeedsPassword || !loginScreen.foundUsers
-                    icon: Config.getIcon(Config.passwordInputIcon)
+                    icon: theme.url + "/icons/" + Config.passwordInputIcon
                     placeholder: (textConstants && textConstants.password) ? textConstants.password : "Password"
                     isPassword: true
                     inputMethodHints: loginScreen.computedInputMethodHintsOnly
@@ -325,12 +310,12 @@ Item {
                 IconButton {
                     id: loginButton
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: width // Fix button not resizing when label updates
+                    Layout.preferredWidth: width 
                     height: password.height
                     visible: !Config.loginButtonHideIfNotNeeded || !loginScreen.userNeedsPassword
                     enabled: loginScreen.state !== "selectingUser" && loginScreen.state !== "authenticating"
                     activeFocusOnTab: true
-                    icon: Config.getIcon(Config.loginButtonIcon)
+                    icon: theme.url + "/icons/" + Config.loginButtonIcon
                     label: textConstants.login ? textConstants.login : "Login"
                     showLabel: Config.loginButtonShowTextIfNoPassword && !loginScreen.userNeedsPassword
                     tooltipText: !Config.tooltipsDisableLoginButton && (!Config.loginButtonShowTextIfNoPassword || loginScreen.userNeedsPassword) ? (textConstants.login || "Login") : ""
@@ -354,9 +339,7 @@ Item {
 
                     Behavior on x {
                         enabled: Config.enableAnimations
-                        NumberAnimation {
-                            duration: 150
-                        }
+                        NumberAnimation { duration: 150 }
                     }
                 }
             }
@@ -406,15 +389,11 @@ Item {
 
                 Behavior on anchors.topMargin {
                     enabled: Config.enableAnimations
-                    NumberAnimation {
-                        duration: 150
-                    }
+                    NumberAnimation { duration: 150 }
                 }
                 Behavior on opacity {
                     enabled: Config.enableAnimations
-                    NumberAnimation {
-                        duration: 150
-                    }
+                    NumberAnimation { duration: 150 }
                 }
 
                 function warn(message, type) {
