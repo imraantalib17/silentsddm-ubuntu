@@ -1,4 +1,4 @@
-# I ended this project already
+### I ended this project already
 > [!WARNING]
 > This theme requires **SDDM v0.21.0 or newer**. Make sure your distro provides the correct version before installing.
 
